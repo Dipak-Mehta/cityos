@@ -1,0 +1,23 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "title": "Telemetry received",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 0},
+      "targets": [{"expr": "cityos_telemetry_total", "refId": "A"}]
+    },
+    {
+      "title": "API telemetry rate",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 6},
+      "targets": [{"expr": "rate(cityos_telemetry_total[1m])", "refId": "A"}]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["cityos", "phase-1"],
+  "time": {"from": "now-15m", "to": "now"},
+  "title": "CITYOS Overview",
+  "version": 1
+}
