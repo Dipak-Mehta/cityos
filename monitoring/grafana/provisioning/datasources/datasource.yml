@@ -2,7 +2,20 @@ apiVersion: 1
 
 datasources:
   - name: Prometheus
+    uid: prometheus
     type: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true
+
+  - name: CITYOS PostgreSQL
+    uid: cityos-postgres
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: ${POSTGRES_USER:-cityos}
+    jsonData:
+      database: ${POSTGRES_DB:-cityos}
+      sslmode: disable
+    secureJsonData:
+      password: ${POSTGRES_PASSWORD:-cityos_dev_password}

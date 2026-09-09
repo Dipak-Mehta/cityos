@@ -1,23 +1,133 @@
 {
   "annotations": {"list": []},
   "editable": true,
+  "graphTooltip": 1,
+  "links": [],
   "panels": [
     {
-      "title": "Telemetry received",
+      "id": 1,
+      "title": "City Health",
       "type": "stat",
-      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 0},
-      "targets": [{"expr": "cityos_telemetry_total", "refId": "A"}]
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT ROUND(100.0 * AVG(CASE WHEN risk = 'LOW' THEN 1 ELSE 0 END), 1) AS value FROM (SELECT DISTINCT ON (intersection_id) intersection_id, CASE WHEN signal_latency > 3 OR error_count >= 10 OR power_voltage < 210 THEN 'HIGH' WHEN signal_latency > 2 OR error_count >= 5 OR power_voltage < 220 THEN 'MEDIUM' ELSE 'LOW' END AS risk FROM telemetry ORDER BY intersection_id, timestamp DESC) latest;"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 70}, {"color": "green", "value": 90}]}}},
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "textMode": "auto"}
     },
     {
-      "title": "API telemetry rate",
+      "id": 2,
+      "title": "Intersections",
+      "type": "stat",
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT COUNT(*) AS value FROM intersections;"}],
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 3,
+      "title": "Active Issues",
+      "type": "stat",
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT COUNT(*) AS value FROM (SELECT DISTINCT ON (intersection_id) intersection_id, CASE WHEN signal_latency > 3 OR error_count >= 10 OR power_voltage < 210 THEN 'HIGH' WHEN signal_latency > 2 OR error_count >= 5 OR power_voltage < 220 THEN 'MEDIUM' ELSE 'LOW' END AS risk FROM telemetry ORDER BY intersection_id, timestamp DESC) latest WHERE risk <> 'LOW';"}],
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1}, {"color": "red", "value": 3}]}}},
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 4,
+      "title": "AI Analyses (24h)",
+      "type": "stat",
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT COUNT(*) AS value FROM ai_analysis WHERE created_at >= NOW() - INTERVAL '24 hours';"}],
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "textMode": "auto"}
+    },
+    {
+      "id": 5,
+      "title": "Intersection Status",
+      "type": "table",
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 5},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT i.id AS intersection, i.name, ROUND(t.traffic_volume::numeric, 0) AS traffic, ROUND(t.signal_latency::numeric, 2) AS latency_s, ROUND(t.power_voltage::numeric, 1) AS voltage_v, t.error_count AS errors, CASE WHEN t.signal_latency > 3 OR t.error_count >= 10 OR t.power_voltage < 210 THEN 'HIGH' WHEN t.signal_latency > 2 OR t.error_count >= 5 OR t.power_voltage < 220 THEN 'MEDIUM' ELSE 'LOW' END AS risk, t.timestamp AS last_seen FROM intersections i JOIN LATERAL (SELECT * FROM telemetry WHERE intersection_id = i.id ORDER BY timestamp DESC LIMIT 1) t ON true ORDER BY CASE WHEN t.signal_latency > 3 OR t.error_count >= 10 OR t.power_voltage < 210 THEN 1 WHEN t.signal_latency > 2 OR t.error_count >= 5 OR t.power_voltage < 220 THEN 2 ELSE 3 END, i.id;"}],
+      "fieldConfig": {"defaults": {}, "overrides": [{"matcher": {"id": "byName", "options": "risk"}, "properties": [{"id": "custom.cellOptions", "value": {"type": "color-text"}}]}]},
+      "options": {"showHeader": true, "cellHeight": "sm"}
+    },
+    {
+      "id": 6,
+      "title": "AI Incident Insights",
+      "type": "table",
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 5},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT created_at AS time, intersection_id AS intersection, risk, provider, model, LEFT(REPLACE(analysis, E'\\n', ' '), 240) AS ai_insight FROM ai_analysis WHERE $__timeFilter(created_at) ORDER BY created_at DESC LIMIT 20;"}],
+      "options": {"showHeader": true, "cellHeight": "sm"}
+    },
+    {
+      "id": 7,
+      "title": "Traffic Volume by Intersection",
       "type": "timeseries",
-      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 6},
-      "targets": [{"expr": "rate(cityos_telemetry_total[1m])", "refId": "A"}]
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14},
+      "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT timestamp AS time, intersection_id AS metric, traffic_volume AS value FROM telemetry WHERE $__timeFilter(timestamp) ORDER BY timestamp;"}],
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 8,
+      "title": "Signal Latency",
+      "type": "timeseries",
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14},
+      "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT timestamp AS time, intersection_id AS metric, signal_latency AS value FROM telemetry WHERE $__timeFilter(timestamp) ORDER BY timestamp;"}],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 9,
+      "title": "Power Voltage",
+      "type": "timeseries",
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 22},
+      "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT timestamp AS time, intersection_id AS metric, power_voltage AS value FROM telemetry WHERE $__timeFilter(timestamp) ORDER BY timestamp;"}],
+      "fieldConfig": {"defaults": {"unit": "volt"}},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 10,
+      "title": "Error Count",
+      "type": "timeseries",
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 22},
+      "targets": [{"refId": "A", "format": "time_series", "rawSql": "SELECT timestamp AS time, intersection_id AS metric, error_count AS value FROM telemetry WHERE $__timeFilter(timestamp) ORDER BY timestamp;"}],
+      "fieldConfig": {"defaults": {"unit": "short"}},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 11,
+      "title": "Intersection Map",
+      "type": "geomap",
+      "datasource": {"type": "postgres", "uid": "cityos-postgres"},
+      "gridPos": {"h": 12, "w": 24, "x": 0, "y": 30},
+      "targets": [{"refId": "A", "format": "table", "rawSql": "SELECT i.name AS intersection, i.latitude, i.longitude, CASE WHEN t.signal_latency > 3 OR t.error_count >= 10 OR t.power_voltage < 210 THEN 'HIGH' WHEN t.signal_latency > 2 OR t.error_count >= 5 OR t.power_voltage < 220 THEN 'MEDIUM' ELSE 'LOW' END AS risk, t.traffic_volume AS traffic, t.signal_latency AS latency, t.error_count AS errors FROM intersections i JOIN LATERAL (SELECT * FROM telemetry WHERE intersection_id = i.id ORDER BY timestamp DESC LIMIT 1) t ON true;"}],
+      "options": {"view": {"id": "coords", "lat": 18.5204, "lon": 73.8567, "zoom": 11}, "controls": {"showZoom": true, "showLegend": true}, "layers": [{"config": {"style": {"color": {"fixed": "#5794F2"}, "size": {"fixed": 8}}}, "location": {"mode": "coords", "latitude": "latitude", "longitude": "longitude"}, "name": "Intersections", "tooltip": true, "type": "markers"}]}
+    },
+    {
+      "id": 12,
+      "title": "Telemetry Ingestion Rate",
+      "type": "timeseries",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 42},
+      "targets": [{"refId": "A", "expr": "rate(cityos_telemetry_total[1m])", "legendFormat": "telemetry/sec"}],
+      "fieldConfig": {"defaults": {"unit": "ops"}},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}}
     }
   ],
+  "refresh": "5s",
   "schemaVersion": 39,
-  "tags": ["cityos", "phase-1"],
-  "time": {"from": "now-15m", "to": "now"},
-  "title": "CITYOS Overview",
-  "version": 1
+  "tags": ["cityos", "phase-2", "ai", "smart-city"],
+  "templating": {"list": []},
+  "time": {"from": "now-30m", "to": "now"},
+  "timezone": "browser",
+  "title": "CITYOS — The City That Fixes Itself",
+  "uid": "cityos-command-center",
+  "version": 2
 }
