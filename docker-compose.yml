@@ -20,6 +20,7 @@ services:
     build: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://cityos:cityos_dev_password@postgres:5432/cityos
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://ai:8010}
     ports:
       - "8000:8000"
     depends_on:
@@ -64,12 +65,16 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      POSTGRES_DB: ${POSTGRES_DB:-cityos}
+      POSTGRES_USER: ${POSTGRES_USER:-cityos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cityos_dev_password}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
+      - postgres
 
 volumes:
   postgres-data:
